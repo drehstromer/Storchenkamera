@@ -1,9 +1,12 @@
-from fastapi import FastAPI, HTTPException, APIRouter
-from fastapi.responses import FileResponse
+#from fastapi import FastAPI, HTTPException, APIRouter
+#from fastapi.responses import FileResponse
 from datetime import datetime
 from pydantic import BaseModel
 from typing import List, Generator
 from dataclasses import dataclass, field
+from flask import Flask, request, send_file, make_response, stream_with_context, Response
+
+
 
 import re
 import os
@@ -102,55 +105,55 @@ class PicturesInFolder():
 
         return internallist if not len(self.pictures) == 0  else None
 
-app = FastAPI()
-#app.include_router(PictureHandling)
+
+app = Flask(__name__)
+
 
 
 pictures = PicturesInFolder(path_to_pictures)
 
 
-@app.get("/")
+@app.route("/")
 def root():
     return {"greeting":"Hello Phips"}
 
 
 
 
-@app.get("/api/getNewestPicture")
+@app.route("/api/getNewestPicture", methods=['GET'])
 def getNewestPicture():
     newestPicture = pictures.getNewestPicture()
 
     if newestPicture is not None:
-        response = FileResponse(path=newestPicture.getFullFilePath())
-        response.filename = newestPicture.getFileName()
+        response = make_response(send_file(newestPicture.getFullFilePath()))
         response.headers['Cache-Control'] = 'no-cache'
         response.headers["file_date"] = str(newestPicture.getDate())
         response.headers["file_time"] = str(newestPicture.getTime())
         response.headers["file_unix"] = str(newestPicture.getUnixTimeStamp())
-        print(newestPicture.getFileName())
         return response
     else:
-       raise HTTPException(status_code=404, detail="No Picture found")
+       return "No Picture found", 404
 
 
-@app.get("/api/getAllPictureInformations")
+@app.route("/api/getAllPictureInformations", methods=['GET'])
 def getAllPictureInformations():
-    return pictures.getAllPictureInformations()
+    return list(pictures.getAllPictureInformations())
 
-@app.get("/api/getPictureInformation")
-def getAllPictureInformations(start : datetime, end : datetime):
-    return pictures.getPictureInformation(start=start,end=end)
+@app.route("/api/getPictureInformation", methods=['GET'])
+def getPictureInformation():
+    start = datetime.fromtimestamp(int(request.args.get('start')))
+    end = datetime.fromtimestamp(int(request.args.get('end')))
+    return list(pictures.getPictureInformation(start=start,end=end))
 
-@app.get("/api/getPicture/{unix_timestamp}")
-def getPicture(unix_timestamp:int):
-    pic = pictures.getPicture(unix_timeStamp=unix_timestamp)
+@app.route("/api/getPicture", methods=['GET'])
+def getPicture():
+    pic = pictures.getPicture(unix_timeStamp=int(request.args.get('unix_timestamp')))
     if pic is not None:
-        response = FileResponse(path=pic.getFullFilePath())
-        response.filename = pic.getFileName()
+        response = make_response(send_file(pic.getFullFilePath()))
         response.headers['Cache-Control'] = 'no-cache'
         response.headers["file_date"] = str(pic.getDate())
         response.headers["file_time"] = str(pic.getTime())
         response.headers["file_unix"] = str(pic.getUnixTimeStamp())
         return response
     else:
-       raise HTTPException(status_code=404, detail=f"No Picture found with timestamp: {unix_timestamp}")    
+       return "No Picture found", 404  
