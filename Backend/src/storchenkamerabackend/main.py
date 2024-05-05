@@ -5,14 +5,15 @@ from pydantic import BaseModel
 from typing import List, Generator
 from dataclasses import dataclass, field
 from flask import Flask, request, send_file, make_response, stream_with_context, Response
+from flask_cors import CORS
 
 
 
 import re
 import os
 
-path_to_pictures = "..\..\webcam"
-
+#path_to_pictures = "..\..\webcam"
+path_to_pictures = "/home/sarmisto/sarmistorch.a2hosted.com/cam/webcam"
 
 
 class PictureInformation():
@@ -48,7 +49,7 @@ class PictureInformation():
     def getFileName(self):
         return self.filename
     def getFullFilePath(self):
-        return os.path.abspath(self.pathToPictures+ "\\" + self.filename)
+        return os.path.abspath(self.pathToPictures+ "/" + self.filename)
     def getDate(self):
         return self.date
     def getTime(self):
@@ -86,7 +87,7 @@ class PicturesInFolder():
  
     def getNewestPicture(self) -> PictureInformation:
         self.__checkForNewPictures()
-        return max(self.pictures, key=lambda x: x.unix_timestamp)
+        return max(self.pictures, key=lambda x: x.unix_timestamp, default= None)
     
     def getPicture(self, unix_timeStamp: int) -> PictureInformation | None:
         self.__checkForNewPictures()
@@ -107,7 +108,7 @@ class PicturesInFolder():
 
 
 app = Flask(__name__)
-
+CORS(app)
 
 
 pictures = PicturesInFolder(path_to_pictures)
@@ -120,7 +121,7 @@ def root():
 
 
 
-@app.route("/api/getNewestPicture", methods=['GET'])
+@app.route("/getNewestPicture", methods=['GET'])
 def getNewestPicture():
     newestPicture = pictures.getNewestPicture()
 
@@ -135,17 +136,17 @@ def getNewestPicture():
        return "No Picture found", 404
 
 
-@app.route("/api/getAllPictureInformations", methods=['GET'])
+@app.route("/getAllPictureInformations", methods=['GET'])
 def getAllPictureInformations():
-    return list(pictures.getAllPictureInformations())
+    return sorted(list(pictures.getAllPictureInformations()), key=lambda x: x["file_unix"], reverse=True)
 
-@app.route("/api/getPictureInformation", methods=['GET'])
+@app.route("/getPictureInformation", methods=['GET'])
 def getPictureInformation():
     start = datetime.fromtimestamp(int(request.args.get('start')))
     end = datetime.fromtimestamp(int(request.args.get('end')))
-    return list(pictures.getPictureInformation(start=start,end=end))
+    return sorted(list(pictures.getPictureInformation(start=start,end=end)), key=lambda x: x["file_unix"], reverse=True)
 
-@app.route("/api/getPicture", methods=['GET'])
+@app.route("/getPicture", methods=['GET'])
 def getPicture():
     pic = pictures.getPicture(unix_timeStamp=int(request.args.get('unix_timestamp')))
     if pic is not None:

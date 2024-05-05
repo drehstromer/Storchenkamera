@@ -11,6 +11,7 @@ dependencies = [
     "uvicorn[standard]>=0.29.0",
     "flask>=3.0.3",
     "pydantic>=2.7.1",
+    "flask-cors>=4.0.1",
 ]
 requires-python = "==3.11.*"
 readme = "README.md"
